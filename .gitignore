@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment and local overrides
+.env
+.env.*
+!.env.example
+*.local
+.agents/
+
+# Cache and temporary files
+.cache/
+.tmp/
+tmp/
+temp/
+.eslintcache
+.vite/
+
+# Test and coverage output
+coverage/
+reverse_engineering/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors and IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
