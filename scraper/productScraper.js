@@ -113,6 +113,209 @@ function extractZenmarketPrice($) {
   return { yen, converted }
 }
 
+function normalizeLabel(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[:：]/g, '')
+}
+
+function extractNeokyoLabelValues($) {
+  const entries = []
+
+  const pairSelectors = [
+    '.main-section-product-details .row.mx-4 p.col-3',
+    '.main-section-product-details .row.mx-4 p.col-4',
+  ]
+
+  for (const selector of pairSelectors) {
+    $(selector).each((_, el) => {
+      const label = normalizeLabel($(el).text())
+      if (!label) {
+        return
+      }
+
+      const valueNode = $(el).nextAll('p,span').first()
+      const value = cleanText(valueNode.text())
+      if (value) {
+        entries.push({ label, value })
+      }
+    })
+  }
+
+  const twoColumnRows = $('.main-section-product-details .row.mx-1 p.col-6').toArray()
+  for (let index = 0; index < twoColumnRows.length - 1; index += 2) {
+    const label = normalizeLabel($(twoColumnRows[index]).text())
+    const value = cleanText($(twoColumnRows[index + 1]).text())
+    if (label && value) {
+      entries.push({ label, value })
+    }
+  }
+
+  return entries
+}
+
+function neokyoValue(entries, matchers) {
+  for (const entry of entries) {
+    if (matchers.some((matcher) => matcher(entry.label))) {
+      return entry.value
+    }
+  }
+
+  return ''
+}
+
+function extractNeokyoTitle($) {
+  return (
+    firstText($, [
+      'h6.font-gothamRounded.translate',
+      'h6.font-gothamRounded.mb-0.translate',
+      'h6.font-gothamRounded',
+    ]) || cleanText($('meta[property="og:title"]').attr('content'))
+  )
+}
+
+function extractNeokyoOriginalUrl($, sourceUrl) {
+  const originalLink = $('a')
+    .filter((_, el) => cleanText($(el).text()).toLowerCase().includes('pagina originale'))
+    .first()
+    .attr('href')
+
+  return originalLink ? toAbsoluteUrl(sourceUrl, originalLink) : ''
+}
+
+function extractNeokyoDescription($) {
+  const descriptionText = cleanText($('#description .translate.white-space-pre-line').first().text())
+  if (descriptionText) {
+    return descriptionText
+  }
+
+  return (
+    cleanText($('meta[property="og:description"]').attr('content')) ||
+    cleanText($('meta[name="description"]').attr('content'))
+  )
+}
+
+function extractNeokyoPrice($) {
+  const yenText = cleanText($('.product-price').first().text())
+  const convertedText = cleanText(
+    $('.statu-box .interval')
+      .filter((_, el) => !$(el).closest('#ab_test_neokyo_fee').length)
+      .first()
+      .text(),
+  )
+
+  if (yenText) {
+    return {
+      yen: `${yenText} Yen`,
+      converted: convertedText.replace(/^circa\s*:?/i, '').trim(),
+    }
+  }
+
+  const yenFallback = cleanText(
+    $('.statu-box .price')
+      .filter((_, el) => !$(el).closest('#ab_test_neokyo_fee').length)
+      .first()
+      .text(),
+  )
+  const convertedFallback = cleanText(
+    $('.statu-box p i, .statu-box p small i')
+      .filter((_, el) => /us\$/i.test(cleanText($(el).text())))
+      .first()
+      .text(),
+  )
+  const purchaseBoxText = cleanText($('.statu-box .text-center').first().text())
+
+  const yenMatch = (yenFallback || purchaseBoxText || '').match(/[\d.,]+\s*yen/i)
+  const convertedMatch = (convertedFallback || '').match(/us\$\s*[\d.,]+/i)
+
+  if (yenMatch || convertedMatch) {
+    return {
+      yen: yenMatch ? yenMatch[0].replace(/\s+/g, ' ') : '',
+      converted:
+        convertedMatch ? convertedMatch[0].replace(/\s+/g, ' ') : convertedText.replace(/^circa\s*:?/i, '').trim(),
+    }
+  }
+
+  return {
+    yen: '',
+    converted: convertedText.replace(/^circa\s*:?/i, '').trim(),
+  }
+}
+
+function extractNeokyoSeller($, sourceUrl, entries) {
+  const profileUrl = firstUrl($, sourceUrl, ['a[href*="/seller/"]'])
+
+  const directSellerText = neokyoValue(entries, [
+    (label) => label === 'venditore',
+    (label) => label === 'seller',
+  ])
+
+  const sellerValueLooksLikeName = directSellerText && !/^[\d\s•]+$/.test(directSellerText)
+
+  const name =
+    cleanText($('.card h6:contains("Venditore")').first().nextAll('i').first().text()) ||
+    cleanText($('.row.mx-4 a[href*="/shop/"]').first().text()) ||
+    cleanText($('.row.mx-4 a[href*="/seller/"]').first().text()) ||
+    (sellerValueLooksLikeName ? directSellerText : '')
+
+  return { name, profileUrl }
+}
+
+function extractNeokyoItem($, entries, sourceUrl) {
+  const id = neokyoValue(entries, [
+    (label) => label === "id dell'articolo",
+    (label) => label === "id dell'asta",
+    (label) => label === 'item id',
+    (label) => label === 'auction id',
+  ])
+
+  const condition = neokyoValue(entries, [
+    (label) => label === 'condizione',
+    (label) => label === "condizione dell'articolo",
+    (label) => label === 'condition',
+  ])
+
+  const domesticShipping = neokyoValue(entries, [
+    (label) => label === 'spedizione nazionale',
+    (label) => label === 'domestic shipping',
+  ])
+
+  const availability =
+    neokyoValue(entries, [
+      (label) => label === 'disponibilità',
+      (label) => label === 'availability',
+    ]) ||
+    cleanText($('.text-success:contains("Disponibile in magazzino")').first().text()) ||
+    cleanText($('.alert:contains("Questo articolo è esaurito")').first().text())
+
+  const startPrice = neokyoValue(entries, [
+    (label) => label === 'prezzo di partenza',
+    (label) => label === 'starting price',
+  ])
+
+  const bidCount = neokyoValue(entries, [
+    (label) => label === 'numero di offerte',
+    (label) => label === 'number of bids',
+  ])
+
+  const size = neokyoValue(entries, [
+    (label) => label === 'dimensione',
+    (label) => label === 'size',
+  ])
+
+  const provider = (() => {
+    try {
+      const { pathname } = new URL(sourceUrl)
+      const parts = pathname.split('/').filter(Boolean)
+      return parts[2] || ''
+    } catch {
+      return ''
+    }
+  })()
+
+  return { id, condition, domesticShipping, availability, startPrice, bidCount, size, provider }
+}
+
 function scrapeZenmarket($, sourceUrl) {
   const japaneseName = cleanText($('#lblProductNameJp').text())
   const titleRaw = cleanText($('title').first().text())
@@ -170,40 +373,28 @@ function scrapeZenmarket($, sourceUrl) {
 }
 
 function scrapeNeokyo($, sourceUrl) {
+  const entries = extractNeokyoLabelValues($)
   const images = uniq([
-    ...$('#product-gallery img.cloudzoom')
-      .map((_, el) => toAbsoluteUrl(sourceUrl, $(el).attr('src')))
-      .get(),
     ...$('#product-gallery li')
       .map((_, el) => toAbsoluteUrl(sourceUrl, $(el).attr('data-thumb')))
       .get(),
     toAbsoluteUrl(sourceUrl, $('meta[property="og:image"]').attr('content')),
   ])
 
+  const price = extractNeokyoPrice($)
+  const seller = extractNeokyoSeller($, sourceUrl, entries)
+  const item = extractNeokyoItem($, entries, sourceUrl)
+
   return {
     source: 'neokyo',
-    title:
-      cleanText($('div.mb-4 h6.translate').first().text()) ||
-      cleanText($('meta[property="og:title"]').attr('content')),
-    description: cleanText($('meta[name="description"]').attr('content')),
+    title: extractNeokyoTitle($),
+    description: extractNeokyoDescription($),
     canonicalUrl: $('link[rel="canonical"]').attr('href') || sourceUrl,
-    originalUrl: $('a[href*="jp.mercari.com/item/"]').first().attr('href') || '',
+    originalUrl: extractNeokyoOriginalUrl($, sourceUrl),
     images,
-    price: {
-      yen: `${cleanText($('.product-price').first().text())} Yen`.trim(),
-      converted: cleanText($('.product-price-converted').first().text()),
-    },
-    seller: {
-      name:
-        cleanText($('p.col-3:contains("Seller")').first().next('p.col-9').text()) ||
-        cleanText($('a[href*="/seller/"]').first().text()),
-      profileUrl: $('a[href*="/seller/"]').first().attr('href') || '',
-    },
-    item: {
-      id: cleanText($('p.col-3:contains("Item ID")').next('p.col-9').text()),
-      condition: cleanText($('p.col-3:contains("Condition")').next('p.col-9').text()),
-      domesticShipping: cleanText($('p.col-3:contains("Domestic Shipping")').next('p.col-9').text()),
-    },
+    price,
+    seller,
+    item,
   }
 }
 

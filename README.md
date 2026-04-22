@@ -99,7 +99,7 @@ Le immagini importate possono essere aperte in una gallery con viewer fullscreen
 ## Architettura del progetto
 
 ```text
-japanbuy/
+OrientExpress/
 |-- deep-research-report.md
 |-- eslint.config.js
 |-- index.html
@@ -165,6 +165,8 @@ Genera l'output nella cartella `dist/`.
 npm run preview
 ```
 
+Nota: in locale `npm run preview` mantiene disponibile anche l'endpoint `/api/scrape-product` tramite il middleware Vite. Nel deploy su GitHub Pages questa funzione non e disponibile, perche GitHub Pages ospita solo file statici.
+
 ## Controllo lint
 
 ```bash
@@ -205,6 +207,25 @@ Limiti da considerare:
 - alcune piattaforme attivano protezioni anti-bot;
 - in presenza di blocchi Cloudflare o simili, l'endpoint restituisce un errore controllato;
 - i dati recuperati vanno comunque verificati prima di usarli come base economica reale.
+
+Nel deploy GitHub Pages il blocco di import da link viene disabilitato automaticamente.
+
+## Deploy su GitHub Pages
+
+Il repository include il workflow `.github/workflows/deploy-pages.yml`.
+
+Comportamento del workflow:
+
+- si attiva su push nel branch `main`;
+- puo essere eseguito anche manualmente da `Actions`;
+- esegue `npm ci` e `npm run build`;
+- pubblica il contenuto di `dist/` su GitHub Pages.
+
+Adattamenti inclusi per Pages:
+
+- base path Vite calcolato automaticamente dal nome del repository GitHub;
+- navigazione interna resa compatibile con Pages tramite hash route per la dashboard;
+- scraping disabilitato nel deploy statico.
 
 ## Note importanti
 

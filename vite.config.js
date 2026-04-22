@@ -6,6 +6,8 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
+const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1]
+const pagesBase = process.env.GITHUB_ACTIONS && repositoryName ? `/${repositoryName}/` : '/'
 
 function looksLikeBotProtection(html) {
   const lowered = (html || '').toLowerCase()
@@ -154,5 +156,6 @@ function productScraperApiPlugin() {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: pagesBase,
   plugins: [react(), tailwindcss(), productScraperApiPlugin()],
 })

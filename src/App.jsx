@@ -116,14 +116,32 @@ function sourceLabel(source) {
   return source || 'Sito esterno'
 }
 
+const DASHBOARD_HASH = '#/dashboard'
+const BASE_URL = import.meta.env.BASE_URL || '/'
+const SCRAPING_AVAILABLE = import.meta.env.VITE_STATIC_DEPLOY !== 'true'
+
+function buildAppHref(hash = '') {
+  return `${BASE_URL}${hash}`
+}
+
+function currentRoute() {
+  const hash = window.location.hash || ''
+  if (hash === DASHBOARD_HASH) {
+    return '/dashboard'
+  }
+
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  return path === '/dashboard' ? '/dashboard' : '/'
+}
+
 function HomePage() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,_#fff8e9_0%,_#f7fbff_34%,_#f4f7fb_100%)] text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
-          <p className="font-['DM_Serif_Display',serif] text-xl tracking-wide">JapanBuy Italia</p>
+          <p className="font-['DM_Serif_Display',serif] text-xl tracking-wide">OrientExpress</p>
           <a
-            href="/dashboard"
+            href={buildAppHref(DASHBOARD_HASH)}
             className="rounded-full bg-amber-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
           >
             Vai alla dashboard
@@ -347,6 +365,11 @@ function DashboardPage() {
   }
 
   const importaDalLink = async () => {
+    if (!SCRAPING_AVAILABLE) {
+      setScrapeError('Import da link non disponibile su GitHub Pages: usa l ambiente locale con `npm run dev` o `npm run preview`.')
+      return
+    }
+
     setScrapeError('')
     setScrapedData(null)
     setViewerOpen(false)
@@ -440,7 +463,7 @@ function DashboardPage() {
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
           <p className="font-['DM_Serif_Display',serif] text-xl tracking-wide">Dashboard calcolatore</p>
           <a
-            href="/"
+            href={buildAppHref()}
             className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-100"
           >
             Torna al report
@@ -459,19 +482,22 @@ function DashboardPage() {
             <div className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4">
               <p className="text-sm font-semibold text-blue-900">Import automatico dal link prodotto</p>
               <p className="mt-1 text-xs text-blue-800">
-                Incolla un link ZenMarket, Neokyo o Buyee: importeremo immagini e dettagli utili.
+                {SCRAPING_AVAILABLE
+                  ? 'Incolla un link ZenMarket, Neokyo o Buyee: importeremo immagini e dettagli utili.'
+                  : 'Su GitHub Pages questa funzione e disabilitata perche richiede un endpoint server locale.'}
               </p>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                 <input
                   value={prodottoUrl}
                   onChange={(e) => setProdottoUrl(e.target.value)}
                   placeholder="https://zenmarket.jp/... oppure https://neokyo.com/..."
-                  className="w-full rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm outline-none ring-blue-300 transition focus:ring"
+                  disabled={!SCRAPING_AVAILABLE}
+                  className="w-full rounded-xl border border-blue-300 bg-white px-3 py-2 text-sm outline-none ring-blue-300 transition focus:ring disabled:cursor-not-allowed disabled:opacity-60"
                 />
                 <button
                   type="button"
                   onClick={importaDalLink}
-                  disabled={scrapeLoading}
+                  disabled={scrapeLoading || !SCRAPING_AVAILABLE}
                   className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {scrapeLoading ? 'Importazione...' : 'Importa dal link'}
@@ -757,7 +783,20 @@ function DashboardPage() {
 }
 
 function App() {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  const [path, setPath] = useState(() => currentRoute())
+
+  useEffect(() => {
+    const syncRoute = () => setPath(currentRoute())
+
+    window.addEventListener('hashchange', syncRoute)
+    window.addEventListener('popstate', syncRoute)
+
+    return () => {
+      window.removeEventListener('hashchange', syncRoute)
+      window.removeEventListener('popstate', syncRoute)
+    }
+  }, [])
+
   return path === '/dashboard' ? <DashboardPage /> : <HomePage />
 }
 
