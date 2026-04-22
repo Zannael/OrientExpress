@@ -1,5 +1,7 @@
 # OrientExpress
 
+> Live app: **[https://zannael.github.io/OrientExpress/](https://zannael.github.io/OrientExpress/)**
+
 Applicazione web realizzata con React e Vite per stimare il costo finale di importazione dal Giappone verso l'Italia.
 
 Il progetto unisce due elementi principali:
