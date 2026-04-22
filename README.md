@@ -1,4 +1,4 @@
-# JapanBuy Italia
+# OrientExpress
 
 Applicazione web realizzata con React e Vite per stimare il costo finale di importazione dal Giappone verso l'Italia.
 
@@ -9,7 +9,7 @@ Il progetto unisce due elementi principali:
 
 ## Obiettivo del progetto
 
-JapanBuy Italia aiuta a rispondere a una domanda pratica: quanto costa davvero comprare dal Giappone tramite proxy e ricevere il pacco in Italia?
+OrientExpress aiuta a rispondere a una domanda pratica: quanto costa davvero comprare dal Giappone tramite proxy e ricevere il pacco in Italia?
 
 L'app non si limita a moltiplicare il prezzo per `1.22`, ma separa il calcolo in blocchi:
 
